@@ -4,9 +4,11 @@ import networkx as nx
 
 
 class Node(keras.layers.Layer):
-    def __init__(self, channels, kernel_size, **kwargs):
+    def __init__(self, channels, kernel_size=(3, 3), strides=(1, 1), padding="same", **kwargs):
         self.channels = channels
         self.kernel_size = kernel_size
+        self.strides = strides
+        self.padding = padding
         super(Node, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -27,7 +29,8 @@ class Node(keras.layers.Layer):
             name='{}_conv'.format(self.name),
             filters=self.channels,
             kernel_size=self.kernel_size,
-            padding='same'
+            padding=self.padding,
+            strides=self.strides
         )
 
         self.batch_norm = keras.layers.BatchNormalization(
@@ -46,12 +49,14 @@ class Node(keras.layers.Layer):
         return x
 
     def compute_output_shape(self, input_shape):
-        return TensorShape((input_shape[0][0], input_shape[0][1], input_shape[0][2], self.channels))
+        return self.conv.compute_output_shape(input_shape[0])
 
     def get_config(self):
         base_config = super(Node, self).get_config()
         base_config['channels'] = self.channels
         base_config['kernel_size'] = self.kernel_size
+        base_config['strides'] = self.strides
+        base_config['padding'] = self.padding
         return base_config
 
     @classmethod
@@ -62,37 +67,52 @@ class Node(keras.layers.Layer):
 class RandomWiring(keras.layers.Layer):
     def __init__(self,
                  channels,
-                 stride,
-                 random_graph_model,
-                 kernel_size=(3,3),
+                 random_graph_algorithm,
+                 strides=(2, 2),
+                 kernel_size=(3, 3),
                  n=32,
                  k=4,
                  p=0.75,
                  m=5,
                  seed=0,
                  **kwargs):
+        """
+
+        :param channels:
+        :param random_graph_algorithm:
+        :param strides: The strides applied to at the convolutions connected to the input node.
+        :param kernel_size:
+        :param n:
+        :param k:
+        :param p:
+        :param m:
+        :param seed:
+        :param kwargs:
+        """
         self.channels = channels
-        self.stride = stride
-        self.random_graph_model = random_graph_model
+        self.strides = strides
+        self.random_graph_model = random_graph_algorithm
         self.kernel_size = kernel_size
         self.n = n
         self.k = k
         self.p = p
         self.seed = seed
 
-        if random_graph_model == "ws":
+        # generate a random graph
+        if random_graph_algorithm == "ws":
             random_graph = nx.connected_watts_strogatz_graph(n, k, p, seed=seed)
-        elif random_graph_model == "ba":
+        elif random_graph_algorithm == "ba":
             random_graph = nx.barabasi_albert_graph(n, m, seed=seed)
-        elif random_graph_model == 'er':
+        elif random_graph_algorithm == 'er':
             random_graph = nx.erdos_renyi_graph(n, p, seed=seed)
         else:
             raise ValueError('random_graph_model must be either "ws", "ba" or "er"')
 
+        # add the edges as directed edges to a directed graph
         self.dag = nx.DiGraph()
         self.dag.add_edges_from(random_graph.edges)
-
         self.dag_output_nodes = [node for node in self.dag.nodes if self.dag.out_degree[node] == 0]
+        self.dag_input_nodes = [node for node in self.dag.nodes if self.dag.in_degree[node] == 0]
 
         assert nx.is_directed_acyclic_graph(self.dag)
 
@@ -100,7 +120,15 @@ class RandomWiring(keras.layers.Layer):
 
     def build(self, input_shape):
         self.input_node = Node(channels=self.channels, kernel_size=self.kernel_size)
-        self.nodes = [Node(channels=self.channels, kernel_size=self.kernel_size) for _ in range(self.n)]
+
+        self.nodes = []
+        for node in range(self.n):
+            # For the first node in the graph we apply the strides as specified. In the paper this is (2, 2).
+            if node in self.dag_input_nodes:
+                self.nodes.append(Node(channels=self.channels, kernel_size=self.kernel_size, strides=self.strides))
+                continue
+            self.nodes.append(Node(channels=self.channels, kernel_size=self.kernel_size))
+
         self.output_node = Node(channels=self.channels, kernel_size=self.kernel_size)
 
     def call(self, inputs, **kwargs):
@@ -126,12 +154,12 @@ class RandomWiring(keras.layers.Layer):
         return x
 
     def compute_output_shape(self, input_shape):
-        return TensorShape((input_shape[0][0], input_shape[0][1], input_shape[0][2], self.channels))
+        return self.output_node.compute_output_shape(input_shape)
 
     def get_config(self):
         base_config = super(RandomWiring, self).get_config()
         base_config['channels'] = self.channels
-        base_config['stride'] = self.stride
+        base_config['stride'] = self.strides
         base_config['kernel_size'] = self.kernel_size
         base_config['random_graph_model'] = self.random_graph_model
         base_config['n'] = self.n
