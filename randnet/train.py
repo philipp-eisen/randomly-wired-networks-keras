@@ -5,7 +5,7 @@ from randnet.model.randnet import RandNetSmall
 
 def train():
     regularizer = keras.regularizers.l2(5e-5)
-    model = RandNetSmall(10)
+    model = RandNetSmall(10, kernel_regularizer=regularizer, bias_regularizer=regularizer)
     keras.optimizers.Adam()
     model.compile(
         optimizer=keras.optimizers.Adam(0.0004),
