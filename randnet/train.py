@@ -23,15 +23,12 @@ def train():
 
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir="log_dir")
 
-    model.fit(x_train[:1000],
-              y_train[:1000],
+    model.fit(x_train,
+              y_train,
               batch_size=32,
-              epochs=1,
+              epochs=100,
               callbacks=[tensorboard_callback],
-              validation_split=0.2)
-    model.evaluate(x_train[:1000],
-                   y_train[:1000],
-                   batch_size=32, )
+              validation_data=(x_test, y_test))
     model.save_weights("model_weights")
 
 
