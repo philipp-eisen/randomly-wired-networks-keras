@@ -6,9 +6,9 @@ from randnet.model.randnet import RandNetSmall
 def train():
     regularizer = keras.regularizers.l2(5e-5)
     model = RandNetSmall(10, kernel_regularizer=regularizer, bias_regularizer=regularizer)
-    keras.optimizers.Adam()
+    optimizer = keras.optimizers.Adam(0.0004)
     model.compile(
-        optimizer=keras.optimizers.Adam(0.0004),
+        optimizer=optimizer,
         loss='categorical_crossentropy',
         metrics=['accuracy']
     )
@@ -23,12 +23,15 @@ def train():
 
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir="log_dir")
 
-    model.fit(x_train,
-              y_train,
+    model.fit(x_train[:1000],
+              y_train[:1000],
               batch_size=32,
-              epochs=100,
+              epochs=1,
               callbacks=[tensorboard_callback],
-              validation_data=(x_test, y_test))
+              validation_split=0.2)
+    model.evaluate(x_train[:1000],
+                   y_train[:1000],
+                   batch_size=32, )
     model.save_weights("model_weights")
 
 

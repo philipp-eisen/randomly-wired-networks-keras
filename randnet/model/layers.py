@@ -3,22 +3,10 @@ from tensorflow.python import keras
 import networkx as nx
 
 
-class Node(keras.layers.Layer):
-    def __init__(self,
-                 channels,
-                 kernel_size=(3, 3),
-                 strides=(1, 1),
-                 padding="same",
-                 kernel_regularizer=None,
-                 bias_regularizer=None,
-                 **kwargs):
-        self.channels = channels
-        self.kernel_size = kernel_size
-        self.strides = strides
-        self.padding = padding
+class WeightedSum(keras.layers.Layer):
+    def __init__(self, kernel_regularizer=None, **kwargs):
         self.kernel_regularizer = kernel_regularizer
-        self.bias_regularizer = bias_regularizer
-        super(Node, self).__init__(**kwargs)
+        super(WeightedSum, self).__init__(**kwargs)
 
     def build(self, input_shape):
         if type(input_shape) is not list:
@@ -35,6 +23,40 @@ class Node(keras.layers.Layer):
             regularizer=self.kernel_regularizer
         )
 
+    def call(self, inputs, **kwargs):
+        x = tf.stack(inputs)
+        # Todo: the way I understand the paper even if there is only one input there is a corresponding weight
+        x = tf.tensordot(x, keras.backend.sigmoid(self.aggregate_w), [[0], [0]])
+        return x
+
+    def get_config(self):
+        base_config = super(WeightedSum, self).get_config()
+        base_config['kernel_regularizer'] = keras.regularizers.serialize(self.kernel_regularizer)
+        return base_config
+
+
+class Node(keras.Model):
+    def __init__(self,
+                 channels,
+                 kernel_size=(3, 3),
+                 strides=(1, 1),
+                 padding="same",
+                 kernel_regularizer=None,
+                 bias_regularizer=None,
+                 **kwargs):
+        super(Node, self).__init__(**kwargs)
+
+        self.channels = channels
+        self.kernel_size = kernel_size
+        self.strides = strides
+        self.padding = padding
+        self.kernel_regularizer = kernel_regularizer
+        self.bias_regularizer = bias_regularizer
+
+        self.weighted_sum = WeightedSum(kernel_regularizer=kernel_regularizer)
+
+        self.relu = keras.layers.ReLU()
+
         self.conv = keras.layers.SeparableConv2D(
             name='{}_conv'.format(self.name),
             filters=self.channels,
@@ -44,43 +66,21 @@ class Node(keras.layers.Layer):
             kernel_regularizer=self.kernel_regularizer,
             bias_regularizer=self.bias_regularizer
         )
-        self.conv.build(input_shape[0])
 
         self.batch_norm = keras.layers.BatchNormalization(
             name='{}_batch_norm'.format(self.name)
         )
-        self.batch_norm.build(self.conv.compute_output_shape(input_shape[0]))
-        super(Node, self).build(input_shape)
 
     def call(self, inputs, training=None, **kwargs):
-        x = tf.stack(inputs)
-        # Todo: the way I understand the paper even if there is only one input there is a corresponding weight
-        x = tf.tensordot(x, keras.backend.sigmoid(self.aggregate_w), [[0], [0]])
+        x = self.weighted_sum(inputs)
 
-        x = keras.activations.relu(x)
+        x = self.relu(x)
         x = self.conv(x, **kwargs)
         x = self.batch_norm(x, training=training)
         return x
 
-    def compute_output_shape(self, input_shape):
-        return self.conv.compute_output_shape(input_shape[0])
 
-    def get_config(self):
-        base_config = super(Node, self).get_config()
-        base_config['channels'] = self.channels
-        base_config['kernel_size'] = self.kernel_size
-        base_config['strides'] = self.strides
-        base_config['padding'] = self.padding
-        base_config['kernel_regularizer'] = keras.regularizers.serialize(self.kernel_regularizer)
-        base_config['bias_regularizer'] = keras.regularizers.serialize(self.bias_regularizer)
-        return base_config
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-
-class RandomWiring(keras.layers.Layer):
+class RandomWiring(keras.Model):
     def __init__(self,
                  channels,
                  random_graph_algorithm,
@@ -90,10 +90,12 @@ class RandomWiring(keras.layers.Layer):
                  k=4,
                  p=0.75,
                  m=5,
-                 seed=0,
+                 seed=1337,
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  **kwargs):
+        super(RandomWiring, self).__init__(**kwargs)
+
         self.channels = channels
         self.strides = strides
         self.random_graph_model = random_graph_algorithm
@@ -124,9 +126,6 @@ class RandomWiring(keras.layers.Layer):
 
         assert nx.is_directed_acyclic_graph(self.dag)
 
-        super(RandomWiring, self).__init__(**kwargs)
-
-    def build(self, input_shape):
         self.input_node = Node(channels=self.channels,
                                kernel_size=self.kernel_size,
                                kernel_regularizer=self.kernel_regularizer,
@@ -173,24 +172,3 @@ class RandomWiring(keras.layers.Layer):
 
         x = self.output_node(dag_outputs, **kwargs)
         return x
-
-    def compute_output_shape(self, input_shape):
-        return self.output_node.compute_output_shape(input_shape)
-
-    def get_config(self):
-        base_config = super(RandomWiring, self).get_config()
-        base_config['channels'] = self.channels
-        base_config['stride'] = self.strides
-        base_config['kernel_size'] = self.kernel_size
-        base_config['random_graph_model'] = self.random_graph_model
-        base_config['n'] = self.n
-        base_config['k'] = self.k
-        base_config['p'] = self.p
-        base_config['seed'] = self.seed
-        base_config['kernel_regularizer'] = keras.regularizers.serialize(self.kernel_regularizer)
-        base_config['bias_regularizer'] = keras.regularizers.serialize(self.bias_regularizer)
-        return base_config
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)

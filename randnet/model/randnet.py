@@ -23,13 +23,13 @@ class RandNetSmall(keras.Model):
         # TODO: nicer!
         channels = 78
         n_nodes = 32
-        self.relu = keras.layers.ReLU()
-
         self.conv_1 = keras.layers.SeparableConv2D(filters=int(channels / 2),
                                                    kernel_size=(3, 3),
                                                    bias_regularizer=bias_regularizer,
                                                    kernel_regularizer=kernel_regularizer)
         self.batch_norm_1 = keras.layers.BatchNormalization()
+
+        self.relu_1 = keras.layers.ReLU()
 
         self.conv_2 = keras.layers.SeparableConv2D(filters=channels,
                                                    kernel_size=(3, 3),
@@ -53,6 +53,8 @@ class RandNetSmall(keras.Model):
                                        bias_regularizer=bias_regularizer,
                                        kernel_regularizer=kernel_regularizer)
 
+        self.relu_2 = keras.layers.ReLU()
+
         self.conv_out = keras.layers.SeparableConv2D(filters=1280,
                                                      kernel_size=(1, 1),
                                                      bias_regularizer=bias_regularizer,
@@ -66,10 +68,13 @@ class RandNetSmall(keras.Model):
         self.softmax = keras.layers.Softmax()
 
     def call(self, inputs, training=None, mask=None):
+        if training is None:
+            training = keras.backend.learning_phase()
+
         x = self.conv_1(inputs)
         x = self.batch_norm_1(x, training=training)
 
-        x = self.relu(x)
+        x = self.relu_1(x)
         x = self.conv_2(x)
         x = self.batch_norm_2(x, training=training)
 
@@ -77,7 +82,7 @@ class RandNetSmall(keras.Model):
         x = self.randwire_2(x, training=training)
         x = self.randwire_3(x, training=training)
 
-        x = self.relu(x)
+        x = self.relu_2(x)
         x = self.conv_out(x)
         x = self.batch_norm_out(x, training=training)
 
