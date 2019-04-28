@@ -52,14 +52,14 @@ class Node(keras.layers.Layer):
         self.batch_norm.build(self.conv.compute_output_shape(input_shape[0]))
         super(Node, self).build(input_shape)
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs, training=None, **kwargs):
         x = tf.stack(inputs)
         # Todo: the way I understand the paper even if there is only one input there is a corresponding weight
         x = tf.tensordot(x, keras.backend.sigmoid(self.aggregate_w), [[0], [0]])
 
         x = keras.activations.relu(x)
-        x = self.conv(x)
-        x = self.batch_norm(x)
+        x = self.conv(x, **kwargs)
+        x = self.batch_norm(x, training=training)
         return x
 
     def compute_output_shape(self, input_shape):
@@ -155,23 +155,23 @@ class RandomWiring(keras.layers.Layer):
     def call(self, inputs, **kwargs):
         node_outputs = [None for _ in range(self.n)]
 
-        x = self.input_node([inputs])
+        x = self.input_node([inputs], **kwargs)
         for node in nx.topological_sort(self.dag):
             if node in self.dag_input_nodes:
-                node_outputs[node] = self.nodes[node]([x])
+                node_outputs[node] = self.nodes[node]([x], **kwargs)
                 continue
 
             predecessor_outputs = []
             for predecessor in self.dag.predecessors(node):
                 predecessor_outputs.append(node_outputs[predecessor])
 
-            node_outputs[node] = self.nodes[node](predecessor_outputs)
+            node_outputs[node] = self.nodes[node](predecessor_outputs, **kwargs)
 
         dag_outputs = []
         for dag_output_node in self.dag_output_nodes:
             dag_outputs.append(node_outputs[dag_output_node])
 
-        x = self.output_node(dag_outputs)
+        x = self.output_node(dag_outputs, **kwargs)
         return x
 
     def compute_output_shape(self, input_shape):

@@ -67,19 +67,19 @@ class RandNetSmall(keras.Model):
 
     def call(self, inputs, training=None, mask=None):
         x = self.conv_1(inputs)
-        x = self.batch_norm_1(x)
+        x = self.batch_norm_1(x, training=training)
 
         x = self.relu(x)
         x = self.conv_2(x)
-        x = self.batch_norm_2(x)
+        x = self.batch_norm_2(x, training=training)
 
-        x = self.randwire_1(x)
-        x = self.randwire_2(x)
-        x = self.randwire_3(x)
+        x = self.randwire_1(x, training=training)
+        x = self.randwire_2(x, training=training)
+        x = self.randwire_3(x, training=training)
 
         x = self.relu(x)
         x = self.conv_out(x)
-        x = self.batch_norm_out(x)
+        x = self.batch_norm_out(x, training=training)
 
         x = self.global_average_pool(x)
         x = self.fc(x)
