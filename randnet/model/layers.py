@@ -6,14 +6,15 @@ import networkx as nx
 class WeightedSum(keras.layers.Layer):
     def __init__(self, kernel_regularizer=None, **kwargs):
         self.kernel_regularizer = kernel_regularizer
+        self.aggregate_w = None
         super(WeightedSum, self).__init__(**kwargs)
 
     def build(self, input_shape):
         if type(input_shape) is not list:
-            raise TypeError("A node needs to be called with a list of "
+            raise TypeError("A node needs to be called/build with a list of "
                             "tensors (even if it only has one parent node)")
         if not all([shape.is_compatible_with(input_shape[0]) for shape in input_shape]):
-            raise ValueError("All inputs must have the same shape. Found {}".format(input_shape))
+            raise ValueError("All inputs must have compatible input shapes. Found {}".format(input_shape))
 
         self.aggregate_w = self.add_weight(
             name='{}_aggregate_w'.format(self.name),
@@ -25,7 +26,6 @@ class WeightedSum(keras.layers.Layer):
 
     def call(self, inputs, **kwargs):
         x = tf.stack(inputs)
-        # Todo: the way I understand the paper even if there is only one input there is a corresponding weight
         x = tf.tensordot(x, keras.backend.sigmoid(self.aggregate_w), [[0], [0]])
         return x
 
@@ -44,6 +44,17 @@ class Node(keras.Model):
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  **kwargs):
+        """
+        Args:
+            channels: The number of channels (filters).
+            kernel_size: The size of the convolution kernel. Defaults to `(3, 3)`
+            strides: The strides used for the convolution operation. Defaults to `(1, 1)`
+            padding: one of `"valid"` or `"same"` (case-insensitive). Defaults to `"same"`
+            kernel_regularizer: Optional regularizer for the convolution kernel as well as the `WeightedSum`
+                                sum operation.
+            bias_regularizer: Optional regularizer for the bias vector.
+            **kwargs: passed through to the `SeparableConv2D` operation.
+        """
         super(Node, self).__init__(**kwargs)
 
         self.channels = channels
@@ -64,36 +75,66 @@ class Node(keras.Model):
             padding=self.padding,
             strides=self.strides,
             kernel_regularizer=self.kernel_regularizer,
-            bias_regularizer=self.bias_regularizer
+            bias_regularizer=self.bias_regularizer,
+            **kwargs
         )
 
         self.batch_norm = keras.layers.BatchNormalization(
             name='{}_batch_norm'.format(self.name)
         )
 
-    def call(self, inputs, training=None, **kwargs):
+    def call(self, inputs, **kwargs):
         x = self.weighted_sum(inputs)
 
         x = self.relu(x)
         x = self.conv(x, **kwargs)
-        x = self.batch_norm(x, training=training)
+        x = self.batch_norm(x)
         return x
 
 
 class RandomWiring(keras.Model):
     def __init__(self,
                  channels,
+                 n,
                  random_graph_algorithm,
                  strides=(2, 2),
                  kernel_size=(3, 3),
-                 n=32,
                  k=4,
                  p=0.75,
                  m=5,
-                 seed=1337,
+                 seed=0,
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  **kwargs):
+        """
+        Args:
+            channels (int): The number of channels all convolution operations in this `RandomWiring` stage produce.
+            n (int): int: The number of nodes in this `RandomWiring` stage.
+            random_graph_algorithm (str): The algorithm used to create the random graph for this `RandomWiring` stage.
+                Can be one of the following:
+                - `"ws"`: The Watts-Strogatz algorithm. If this algorithm is chosen the following
+                    additional parameters have to be provided:
+                    - `k`: Each node is joined with its `k` nearest neighbors in a ring
+                    - `p`: The probability of rewiring each edge
+                - `"ba"` Barabási–Albert algorithm. If this algorithm is chosen the following
+                    additional parameters have to be provided:
+                    - `m`: Number of edges to attach from a new node to existing nodes
+                - `"er"`: Erdős-Rényi algorithm. If this algorithm is chosen the following
+                    additional parameters have to be provided:
+                    - `p`: protbability of edge creation
+            strides:
+            kernel_size (tuple(int, int)):
+            k (int): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
+                best performing value in arxiv 1904.01569.
+            p (float): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
+                best performing value in arxiv 1904.01569.
+            m (int): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
+                best performing value in arxiv 1904.01569.
+            seed (int): int. Seed with which the random graph algorithms are seeded. Defaults to fixed `0`.
+            kernel_regularizer (keras.regularizers.Regularizer): applied to all kernel weights of all nodes
+            bias_regularizer (keras.regularizers.Regularizer): applied to all bias nodes of all nodes
+            **kwargs:
+        """
         super(RandomWiring, self).__init__(**kwargs)
 
         self.channels = channels
@@ -115,7 +156,7 @@ class RandomWiring(keras.Model):
         elif random_graph_algorithm == 'er':
             random_graph = nx.erdos_renyi_graph(n, p, seed=seed)
         else:
-            raise ValueError('random_graph_model must be either "ws", "ba" or "er"')
+            raise ValueError('`random_graph_model` must be either "ws", "ba" or "er"')
 
         # add the edges as directed edges to a directed graph
         self.dag = nx.DiGraph()
