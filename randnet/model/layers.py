@@ -43,6 +43,7 @@ class Node(keras.Model):
                  padding="same",
                  kernel_regularizer=None,
                  bias_regularizer=None,
+                 dropout_rate=0.2,
                  **kwargs):
         """
         Args:
@@ -82,6 +83,7 @@ class Node(keras.Model):
         self.batch_norm = keras.layers.BatchNormalization(
             name='{}_batch_norm'.format(self.name)
         )
+        self.drop_out = keras.layers.Dropout(dropout_rate)
 
     def call(self, inputs, **kwargs):
         x = self.weighted_sum(inputs)
@@ -89,6 +91,7 @@ class Node(keras.Model):
         x = self.relu(x)
         x = self.conv(x, **kwargs)
         x = self.batch_norm(x)
+        x = self.drop_out(x)
         return x
 
 

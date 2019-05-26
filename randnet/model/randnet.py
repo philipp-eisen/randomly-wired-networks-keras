@@ -10,7 +10,9 @@ from tensorflow.python import keras
 
 class RandNetSmall(keras.Model):
 
-    def __init__(self, num_classes,
+    def __init__(self,
+                 num_classes,
+                 dropout_rate=0.2,
                  kernel_regularizer=None,
                  bias_regularizer=None,
                  seeds=(0, 1, 2)):
@@ -70,6 +72,7 @@ class RandNetSmall(keras.Model):
         self.fc = keras.layers.Dense(num_classes,
                                      kernel_regularizer=bias_regularizer,
                                      bias_regularizer=kernel_regularizer)
+        self.dropout = keras.layers.Dropout(dropout_rate)
         self.softmax = keras.layers.Softmax()
 
     def call(self, inputs, training=None, mask=None):
@@ -90,6 +93,7 @@ class RandNetSmall(keras.Model):
 
         x = self.global_average_pool(x)
         x = self.fc(x)
+        x = self.dropout(x)
         x = self.softmax(x)
         return x
 
