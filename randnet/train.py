@@ -21,7 +21,7 @@ def train():
     x_train /= 255
     x_test /= 255
 
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir="log_dir")
+    tensorboard_callback = keras.callbacks.TensorBoard(log_dir="log_dir", write_images=True)
 
     model.fit(x_train,
               y_train,
