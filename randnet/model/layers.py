@@ -16,9 +16,11 @@ class WeightedSum(keras.layers.Layer):
         if not all([shape.is_compatible_with(input_shape[0]) for shape in input_shape]):
             raise ValueError("All inputs must have compatible input shapes. Found {}".format(input_shape))
 
+        shape = tf.TensorShape(len(input_shape))
+
         self.aggregate_w = self.add_weight(
             name='{}_aggregate_w'.format(self.name),
-            shape=len(input_shape),
+            shape=shape,
             initializer=keras.initializers.zeros,
             trainable=True,
             regularizer=self.kernel_regularizer

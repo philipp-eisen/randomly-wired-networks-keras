@@ -96,7 +96,7 @@ class RandNetSmall(keras.Model):
         x = self.dropout(x)
         x = self.softmax(x)
         return x
-
-    def build(self, input_shape):
-        raise NotImplementedError("manually building (i.e. not implicitly building through __call__)"
-                                  " is currently not supported")
+    #
+    # def build(self, input_shape):
+    #     raise NotImplementedError("manually building (i.e. not implicitly building through __call__)"
+    #                               " is currently not supported")

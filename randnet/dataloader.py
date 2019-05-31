@@ -26,6 +26,10 @@ class DataLoader:
         return image, label
 
     @property
+    def shape(self):
+        return tf.TensorShape((self.batch_size, *self.info.features["image"].shape))
+
+    @property
     def info(self):
         return self.dataset_builder.info
 
