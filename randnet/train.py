@@ -1,35 +1,31 @@
-import tensorflow as tf
 from tensorflow.python import keras
+
+from randnet.dataloader import DataLoader
 from randnet.model.randnet import RandNetSmall
 
 
-def train():
+def train(dataset="cifar10", batch_size=32):
+
+    data_loader = DataLoader(dataset, batch_size)
+
     regularizer = keras.regularizers.l2(0.0001)
-    model = RandNetSmall(10, kernel_regularizer=regularizer, bias_regularizer=regularizer)
+    model = RandNetSmall(data_loader.num_classes, kernel_regularizer=regularizer, bias_regularizer=regularizer)
     optimizer = keras.optimizers.Adam(0.0004)
     model.compile(
         optimizer=optimizer,
         loss='categorical_crossentropy',
         metrics=['accuracy']
     )
-    (x_train, y_train), (x_test, y_test) = keras.datasets.cifar10.load_data()
-    y_train = keras.utils.to_categorical(y_train, 10)
-    y_test = keras.utils.to_categorical(y_test, 10)
 
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-    x_train /= 255
-    x_test /= 255
+    train_iterator = data_loader.train_one_shot_iterator
+    val_iterator = data_loader.val_one_shot_iterator
 
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir="log_dir", write_images=True)
-
-    model.fit(x_train,
-              y_train,
-              batch_size=32,
-              epochs=100,
-              callbacks=[tensorboard_callback],
-              validation_data=(x_test, y_test))
-    model.save_weights("model_weights")
+    model.fit(train_iterator,
+              steps_per_epoch=data_loader.train_steps_per_epoch,
+              epochs=10,
+              batch_size=batch_size,
+              validation_data=val_iterator,
+              validation_steps=data_loader.val_steps_per_epoch)
 
 
 if __name__ == '__main__':
