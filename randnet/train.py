@@ -2,6 +2,9 @@ import os
 import math
 import argparse
 
+
+import tensorflow as tf
+
 from tensorflow.python import keras
 
 from randnet.data.loader import DataLoader
@@ -10,7 +13,7 @@ from randnet.model.randnet import RandNetSmall
 
 
 def half_cosine_lr_schedule(epoch, total_n_epochs=100, initial_lr=0.1):
-    x = (epoch / total_n_epochs) * (math.pi / 2)
+    x = (epoch / total_n_epochs) * math.pi
     return initial_lr * 0.5 * (math.cos(x) + 1)
 
 
@@ -46,17 +49,18 @@ def train(experiment_dir="experiment",
         metrics=[keras.metrics.accuracy,
                  keras.metrics.top_k_categorical_accuracy])
 
-    model.build(data_loader.shape)
-    model.summary()
-
-    train_iterator = data_loader.train_one_shot_iterator
-    val_iterator = data_loader.val_one_shot_iterator
+    # model.build(data_loader.shape)
+    # model.summary()
 
     log_dir = os.path.join(experiment_dir, "logs")
     tensorboard_callback = TensorboardCallbackWithLR(log_dir=log_dir, write_images=True)
 
+    train_iterator = data_loader.train_one_shot_iterator
+    val_iterator = data_loader.val_one_shot_iterator
+
     learning_rate_scheduler = keras.callbacks.LearningRateScheduler(
-        lambda x: half_cosine_lr_schedule(x, initial_lr=initial_lr, total_n_epochs=epochs))
+        lambda x: half_cosine_lr_schedule(x, initial_lr=initial_lr, total_n_epochs=epochs),
+        verbose=1)
 
     model.fit(train_iterator,
               steps_per_epoch=data_loader.train_steps_per_epoch,
@@ -72,12 +76,12 @@ def train(experiment_dir="experiment",
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Keras Randomly Wired Networks Training")
-    parser.add_argument("--experiment-dir", default="experiment")
-    parser.add_argument("--dataset", default="cifar10", choices=list(DataSetMapper.VAL_SPLIT_MAPPING.keys()))
-    parser.add_argument("--epochs", default=100)
-    parser.add_argument("--l2", default=0.0001)
-    parser.add_argument("--batch-size", default=32)
-    parser.add_argument("--initial-lr", default=0.1)
+    parser.add_argument("--experiment-dir", default="experiment", type=str)
+    parser.add_argument("--dataset", default="cifar10", choices=list(DataSetMapper.VAL_SPLIT_MAPPING.keys()), type=str)
+    parser.add_argument("--epochs", default=100, type=int)
+    parser.add_argument("--l2", default=0.0001, type=float)
+    parser.add_argument("--batch-size", default=32, type=int)
+    parser.add_argument("--initial-lr", default=0.1, type=float)
     return parser.parse_args()
 
 
