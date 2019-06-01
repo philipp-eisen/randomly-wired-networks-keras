@@ -5,7 +5,7 @@ import tensorflow_datasets as tfds
 class DataLoader:
     def __init__(self, name, batch_size,
                  train_split=tfds.Split.TRAIN,
-                 val_split=tfds.Split.TEST,
+                 val_split=tfds.Split.VALIDATION,
                  prefetch=tf.data.experimental.AUTOTUNE,
                  shuffle_buffer_size=1024):
 

@@ -15,20 +15,45 @@ class RandNetSmall(keras.Model):
                  dropout_rate=0.2,
                  kernel_regularizer=None,
                  bias_regularizer=None,
-                 seeds=(0, 1, 2)):
+                 seeds=(0, 1, 2),
+                 channels=78,
+                 n_nodes=32,
+                 random_graph_algorithm="ws",
+                 k=4,
+                 p=0.75,
+                 m=5
+                 ):
         """
 
         Args:
-            seeds (tuple(int)):
             num_classes (int): The number of classes the dataset has
             bias_regularizer (keras.regularizers.Regularizer):  Regularizer function applied to all bias weights
+            seeds (tuple(int)): the seeds used to seed the random graph generation algorithm of each of the three
+                                RandomWiring layers.
             kernel_regularizer (keras.regularizers.Regularizer): Regularizer function applied to all kernel weights
+            channels (int): the number of channels used in the first RandomWiring layer. The subsequent layer are
+                            are going to be 2 * `channels` and 4 * `channels` respectively.
+            random_graph_algorithm (str): The algorithm used to create the random graph for this `RandomWiring` stage.
+                Can be one of the following:
+                - `"ws"`: The Watts-Strogatz algorithm. If this algorithm is chosen the following
+                    additional parameters have to be provided:
+                    - `k`: Each node is joined with its `k` nearest neighbors in a ring
+                    - `p`: The probability of rewiring each edge
+                - `"ba"` Barabási–Albert algorithm. If this algorithm is chosen the following
+                    additional parameters have to be provided:
+                    - `m`: Number of edges to attach from a new node to existing nodes
+                - `"er"`: Erdős-Rényi algorithm. If this algorithm is chosen the following
+                    additional parameters have to be provided:
+                    - `p`: probability of edge creation
+            k (int): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
+                best performing value in arxiv 1904.01569.
+            p (float): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
+                best performing value in arxiv 1904.01569.
+            m (int): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
+                best performing value in arxiv 1904.01569.
         """
 
         super(RandNetSmall, self).__init__(name='rand_net')
-        # TODO: nicer!
-        channels = 78
-        n_nodes = 32
         self.conv_1 = keras.layers.SeparableConv2D(filters=int(channels / 2),
                                                    kernel_size=(3, 3),
                                                    bias_regularizer=bias_regularizer,
@@ -45,22 +70,33 @@ class RandNetSmall(keras.Model):
 
         self.randwire_1 = RandomWiring(channels=channels,
                                        n=n_nodes,
-                                       random_graph_algorithm="ws",
                                        bias_regularizer=bias_regularizer,
                                        kernel_regularizer=kernel_regularizer,
-                                       seed=seeds[0])
+                                       seed=seeds[0],
+                                       random_graph_algorithm=random_graph_algorithm,
+                                       k=k,
+                                       p=p,
+                                       m=m)
+
         self.randwire_2 = RandomWiring(channels=2 * channels,
                                        n=n_nodes,
-                                       random_graph_algorithm="ws",
                                        bias_regularizer=bias_regularizer,
                                        kernel_regularizer=kernel_regularizer,
-                                       seed=seeds[1])
+                                       seed=seeds[1],
+                                       random_graph_algorithm=random_graph_algorithm,
+                                       k=k,
+                                       p=p,
+                                       m=m)
+
         self.randwire_3 = RandomWiring(channels=4 * channels,
                                        n=n_nodes,
-                                       random_graph_algorithm="ws",
                                        bias_regularizer=bias_regularizer,
                                        kernel_regularizer=kernel_regularizer,
-                                       seed=seeds[2])
+                                       seed=seeds[2],
+                                       random_graph_algorithm=random_graph_algorithm,
+                                       k=k,
+                                       p=p,
+                                       m=m)
 
         self.conv_out = keras.layers.SeparableConv2D(filters=1280,
                                                      kernel_size=(1, 1),
@@ -96,7 +132,3 @@ class RandNetSmall(keras.Model):
         x = self.dropout(x)
         x = self.softmax(x)
         return x
-    #
-    # def build(self, input_shape):
-    #     raise NotImplementedError("manually building (i.e. not implicitly building through __call__)"
-    #                               " is currently not supported")

@@ -126,9 +126,11 @@ class RandomWiring(keras.Model):
                     - `m`: Number of edges to attach from a new node to existing nodes
                 - `"er"`: Erdős-Rényi algorithm. If this algorithm is chosen the following
                     additional parameters have to be provided:
-                    - `p`: protbability of edge creation
-            strides:
-            kernel_size (tuple(int, int)):
+                    - `p`: probability of edge creation
+            strides: The strides used in the first node. The other nodes in the RandomWiring use stride: `(1, 1)`.
+                     Defaults to (2, 2) as per arxiv 1904.01569.
+            kernel_size (tuple(int, int)): The size of the kernel used for concolution operations in this layer.
+                                           defaults to `(3, 3)`
             k (int): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
                 best performing value in arxiv 1904.01569.
             p (float): refer to "`random_graph_algorithm`" for explanation of the argument. Defaults to
