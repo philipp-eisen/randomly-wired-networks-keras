@@ -3,8 +3,6 @@ import math
 import argparse
 
 
-import tensorflow as tf
-
 from tensorflow.python import keras
 
 from randnet.data.loader import DataLoader
@@ -13,7 +11,7 @@ from randnet.model.randnet import RandNetSmall
 
 
 def half_cosine_lr_schedule(epoch, total_n_epochs=100, initial_lr=0.1):
-    x = (epoch / total_n_epochs) * math.pi
+    x = (epoch / float(total_n_epochs)) * math.pi
     return initial_lr * 0.5 * (math.cos(x) + 1)
 
 
