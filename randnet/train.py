@@ -44,8 +44,9 @@ def train(experiment_dir="experiment",
     model.compile(
         optimizer=optimizer,
         loss='categorical_crossentropy',
-        metrics=[keras.metrics.accuracy,
-                 keras.metrics.top_k_categorical_accuracy])
+        metrics=[keras.metrics.categorical_accuracy,
+                 keras.metrics.top_k_categorical_accuracy]
+    )
 
     # model.build(data_loader.shape)
     # model.summary()
@@ -65,8 +66,8 @@ def train(experiment_dir="experiment",
               epochs=epochs,
               batch_size=batch_size,
               validation_data=val_iterator,
-              callbacks=[tensorboard_callback, learning_rate_scheduler],
-              validation_steps=data_loader.val_steps_per_epoch)
+              validation_steps=data_loader.val_steps_per_epoch,
+              callbacks=[tensorboard_callback, learning_rate_scheduler])
 
     weight_path = os.path.join(experiment_dir, "weights/model_weights")
     model.save_weights(weight_path)
