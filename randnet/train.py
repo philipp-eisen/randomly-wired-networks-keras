@@ -2,7 +2,7 @@ import os
 import math
 import argparse
 
-
+import tensorflow as tf
 from tensorflow.python import keras
 
 from randnet.data.loader import DataLoader

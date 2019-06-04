@@ -7,7 +7,8 @@ class DataLoader:
                  train_split=tfds.Split.TRAIN,
                  val_split=tfds.Split.VALIDATION,
                  prefetch=tf.data.experimental.AUTOTUNE,
-                 shuffle_buffer_size=1024):
+                 shuffle_buffer_size=1024,
+                 label_smooth_factor=0.1):
 
         self.name = name
         self.batch_size = batch_size
@@ -20,9 +21,23 @@ class DataLoader:
         self.dataset_builder = tfds.builder(name)
         self.dataset_builder.download_and_prepare()
 
+        self.label_smoothing_factor = label_smooth_factor
+
+    def _smooth_labels(self, label):
+        assert len(label.shape) == 1
+        if 0 <= self.label_smoothing_factor <= 1:
+            # label smoothing ref: https://www.robots.ox.ac.uk/~vgg/rg/papers/reinception.pdf
+            label *= 1 - self.label_smoothing_factor
+            label += self.label_smoothing_factor / label.shape[0].value
+        else:
+            raise Exception('Invalid label smoothing factor: ' + str(self.label_smoothing_factor))
+        return label
+
     def _preprocess(self, image, label):
         image /= 255
         label = tf.one_hot(label, self.num_classes)
+        if self.label_smoothing_factor:
+            label = self._smooth_labels(label)
         return image, label
 
     @property
