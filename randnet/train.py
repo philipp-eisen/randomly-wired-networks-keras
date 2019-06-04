@@ -2,7 +2,6 @@ import os
 import math
 import argparse
 
-import tensorflow as tf
 from tensorflow.python import keras
 
 from randnet.data.loader import DataLoader
@@ -61,13 +60,21 @@ def train(experiment_dir="experiment",
         lambda x: half_cosine_lr_schedule(x, initial_lr=initial_lr, total_n_epochs=epochs),
         verbose=1)
 
+    filepath = os.path.join(experiment_dir, "best_model_weights_checkpoint")
+    checkpoint_callback = keras.callbacks.ModelCheckpoint(filepath,
+                                                          monitor='val_acc',
+                                                          verbose=1,
+                                                          save_best_only=True,
+                                                          mode='max',
+                                                          save_weights_only=True)
+
     model.fit(train_iterator,
               steps_per_epoch=data_loader.train_steps_per_epoch,
               epochs=epochs,
               batch_size=batch_size,
               validation_data=val_iterator,
               validation_steps=data_loader.val_steps_per_epoch,
-              callbacks=[tensorboard_callback, learning_rate_scheduler])
+              callbacks=[tensorboard_callback, learning_rate_scheduler, checkpoint_callback])
 
     weight_path = os.path.join(experiment_dir, "weights/model_weights")
     model.save_weights(weight_path)
