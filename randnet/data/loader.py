@@ -7,7 +7,7 @@ class DataLoader:
                  train_split=tfds.Split.TRAIN,
                  val_split=tfds.Split.VALIDATION,
                  prefetch=tf.data.experimental.AUTOTUNE,
-                 shuffle_buffer_size=1024,
+                 shuffle_buffer_size=2048,
                  label_smooth_factor=0.1):
 
         self.name = name
@@ -72,19 +72,19 @@ class DataLoader:
     def train_dataset(self):
         dataset = self.dataset_builder.as_dataset(split=self.train_split, as_supervised=True)
         dataset = dataset.map(self._preprocess)
-        dataset = dataset.repeat()
         dataset = dataset.shuffle(self.shuffle_buffer_size)
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(self.prefetch)
+        dataset = dataset.repeat()
         return dataset
 
     @property
     def val_dataset(self):
         dataset = self.dataset_builder.as_dataset(split=self.val_split, as_supervised=True)
         dataset = dataset.map(self._preprocess)
-        dataset = dataset.repeat()
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(self.prefetch)
+        dataset = dataset.repeat()
         return dataset
 
     @property
